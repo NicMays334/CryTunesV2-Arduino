@@ -1,0 +1,249 @@
+/* 
+ *  @author Nicolas Mays
+ *  CryTunesV2
+ *  12/3/2018
+ */
+
+//pins
+#define REDPIN 5
+#define GREENPIN 6
+#define BLUEPIN 3
+const int soundPin = A0;
+const int cLedPin = 13; 
+
+int r = 0;
+int g = 0;
+int b = 0;
+
+int sensorValue = 0;
+int fadeState = 1;
+int alpha = 0;
+int omega = 1000;
+int spikeThreshold = 0;
+boolean spike;
+
+//User config: adjust based on conditions
+#define FADESPEED 5
+int spikeDelay = 250;
+
+void setup() 
+{
+  //pin setup
+  pinMode(REDPIN, OUTPUT);
+  pinMode(GREENPIN, OUTPUT);
+  pinMode(BLUEPIN, OUTPUT);
+  pinMode(sensorValue, INPUT);
+  pinMode(cLedPin, OUTPUT);
+  Serial.begin(9600);
+
+  //define values. Start at blue
+  r=0;
+  g=0;
+  b=255;
+
+  //calibrating soundsensor over 1000 readings  
+  Serial.println("======CALIBRATING=====");
+  for(int i=0; i<1000; i++)
+  {
+    sensorValue = analogRead(soundPin);
+    
+    //ceiling - alpha
+    if(sensorValue>alpha)
+    {
+      alpha=sensorValue;
+    }
+    
+    //floor - omega
+    if(sensorValue<omega)
+    {
+      omega=sensorValue;
+    }
+    
+    if(i%100)
+    {
+      digitalWrite(cLedPin, HIGH);
+    }
+    
+    if(i%55)
+    {
+      digitalWrite(cLedPin, LOW);
+    }
+  }
+  digitalWrite(cLedPin, HIGH);
+  Serial.println("==========DONE========");
+  delay(4000);
+}
+
+//Finds highgest value of 3 inputs. 
+//If values are equal Blue is higher than green. Green is higher than red.
+//based on visible light
+int findRGBMax(int redVal, int greenVal, int blueVal)
+{   
+  if(redVal>greenVal)
+  {
+    if(redVal>blueVal)
+    {
+      return(1);
+    } 
+    else
+    {
+      return(3);
+    }
+  }
+  else if(greenVal>blueVal)
+  {
+    return(2);
+  }
+  else
+  {
+    return(3);
+  }
+}
+
+//sets the color of the LEDs
+void setColor(int red, int green, int blue)
+{
+  analogWrite(REDPIN, red);
+  analogWrite(GREENPIN, green);
+  analogWrite(BLUEPIN, blue);
+}
+
+
+
+void loop() 
+{ 
+  //read Sound sensor
+  int sensorValue = analogRead(soundPin);
+  
+  //is the origin surpassed by a sound sensor reading
+  if(sensorValue>=omega && sensorValue<=alpha)
+    spike = false;
+  else
+    spike = true;
+
+
+  //A downbeat is being read
+  if(spike)
+  {
+    int strongColor = findRGBMax(r, g, b);
+    //red
+    if(strongColor == 1)
+    {
+      //spike Teal
+      setColor(0, 255, 255);
+      delay(spikeDelay);
+    }
+    
+    //green
+    else if(strongColor == 2)
+    {
+      //spike Violet
+      setColor(255, 0, 255);
+      delay(spikeDelay);
+    }
+    
+    //blue
+    else
+    {
+      //spike Yellow
+      setColor(255, 255, 0);
+      delay(spikeDelay);
+    }
+  }
+
+  //constant fading 
+  else 
+  {
+    //blue to violet
+    if(fadeState == 1)
+    {
+      if(r < 255)
+      {
+        r++;
+        setColor(r, g, b);
+        delay(FADESPEED);
+      }
+      
+      else
+      {
+        fadeState = 2;
+        //return(0);
+      }
+    }
+  
+    //violet to red
+    else if(fadeState == 2)
+    {
+      if(b > 0)
+      {
+        b--;
+        setColor(r, g, b);
+        delay(FADESPEED);
+      }
+      else
+      {
+       fadeState = 3;
+      }
+    }
+  
+    //red to yellow
+    else if(fadeState == 3)
+    {
+      if(g < 255)
+      {
+        g++;
+        setColor(r, g, b);
+        delay(FADESPEED);
+      }
+      else
+      {
+        fadeState = 4;
+      }
+    }
+  
+    //yellow to green
+    else if(fadeState == 4)
+    {
+      if(r > 0)
+      {
+        r--;
+        setColor(r, g, b);
+        delay(FADESPEED);
+      }
+      else 
+      {
+        fadeState = 5;
+      }
+    }
+  
+    //green to teal
+    else if(fadeState == 5)
+    {
+      if(b < 255)
+      {
+        b++;
+        setColor(r, g, b);
+        delay(FADESPEED);
+      }
+      else
+      {
+        fadeState = 6;
+      }
+    }
+  
+    //teal to blue
+    else if(fadeState == 6)
+    {
+      if(g > 0)
+      {
+        g--;
+        setColor(r, g, b);
+        delay(FADESPEED);
+      }
+      else
+      {
+        fadeState = 1;
+      }
+    }
+  }
+}
